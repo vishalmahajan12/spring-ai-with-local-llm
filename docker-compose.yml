@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - spring-ai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  spring-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spring-ai-app
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_AI_OLLAMA_BASE_URL=http://ollama:11434
+      - SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL=orieg/gemma3-tools:1b-it-qat
+      - SPRING_AI_OLLAMA_CHAT_OPTIONS_TEMPERATURE=0.7
+      - SPRING_AI_OLLAMA_CHAT_OPTIONS_TOOLS_ENABLED=true
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - spring-ai-network
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  spring-ai-network:
+    driver: bridge
+
